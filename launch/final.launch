@@ -1,0 +1,47 @@
+<launch>
+	
+	<param name="plane_origin" value="" />
+	<param name="plane_x_vector" value="" />
+	<param name="plane_y_vector" value="" />
+
+	<param name="lambda" value="" />
+	<param name="board_to_kinect" value="" />
+
+	<param name="true_ball_diameter" value="0.041275" />
+	<param name="true_block_side_length" value="0.04445" />
+    <param name="true_goal_length" value="0.2921" />
+    <param name="true_field_length" value="1.3589" />
+    <param name="true_field_width" value="0.6731" />
+
+    <param name="t_on_offense" value="0" />
+    <param name="t0_on_offense" value="0" />
+
+    <param name="my_goal_center" value="[]" />
+    <param name="their_goal_center" value="[]" />
+
+	<param name="phase" value="-1" />
+	<param name="hand_mode" type="string" value="" />
+
+	<param name="gripper" value="" />
+	<param name="max_operating_height" value="5" />
+
+    <param name="board_home" value="[]" /> <!-- circle in front of our goal-->
+    <param name="def_angles" value="[]" /> 
+    <param name="pix_per_m" value="331." />
+
+    <param name="board_x" value="[]" />
+    <param name="board_y" value="[]" />
+    <param name="board_z" value="[]" />
+    
+    <param name="x_unit" value="[]" />
+    <param name="y_unit" value="[]" />
+    
+	<node name="eyes" pkg="group7_final" type="eyes.py" output="screen"/>
+
+	<node name="body" pkg="group7_final" type="body.py" output="screen" />
+	
+	<node name="brain" pkg="group7_final" type="brain.py" output="screen"/>
+
+    <!--<include file="$(find game_server)/launch/game_server.launch"/>-->
+
+</launch>

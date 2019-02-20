@@ -1,0 +1,118 @@
+def DrawLine(dest,v): #dest is a vector relative to current position
+    hand = rospy.get_param('hand_mode')
+    limb=bi.Limb(hand)
+    rospy.sleep(0.1)
+    j_vels=limb.joint_velocities()
+    start_pose=limb.endpoint_pose()
+    start_pos=start_pose['position']
+
+    start_xyz=np.array([start_pos.x, start_pos.y, start_pos.z])
+    travel_vector = np.array(dest-start_xyz)
+    abs_dist=np.linalg.norm(travel_vector)
+    dir_vect =travel_vector/(np.linalg.norm(travel_vector))
+    v_0=v
+    goal=np.array(start_xyz+travel_vector)
+
+    v=v_0*dir_vect
+    w = np.array([0, 0, 0])
+    xi=np.concatenate((v, w),axis=0)	
+
+    joint_values = limb.joint_names()
+    kin=bk(hand)
+
+    q_dot=np.dot(kin.jacobian_pseudo_inverse(),xi)
+
+    j_vels[hand+'_s0']=q_dot[0,0]
+    j_vels[hand+'_s1']=q_dot[0,1]
+    j_vels[hand+'_e0']=q_dot[0,2]
+    j_vels[hand+'_e1']=q_dot[0,3]
+    j_vels[hand+'_w0']=q_dot[0,4]
+    j_vels[hand+'_w1']=q_dot[0,5]
+    j_vels[hand+'_w2']=q_dot[0,6]
+
+    #frq=.01
+    #limb.set_command_timeout(.01)
+    limb.set_joint_velocities(j_vels)
+    limb.set_joint_velocities(j_vels)
+    vel_dict=limb.endpoint_velocity()['linear']
+    #rospy.sleep(frq)
+    time_at_start = rospy.get_time() # in seconds
+    isMoving = False #True
+    while isMoving:
+        t = rospy.get_time() - time_at_start
+        pos_dict=limb.endpoint_pose()['position']
+        or_dict=limb.endpoint_pose()['orientation']
+        current_position = np.array([pos_dict.x,pos_dict.y,pos_dict.z,or_dict.x,or_dict.y,or_dict.z])
+        expected_position = np.array([start_pos.x, start_pos.y, start_pos.z,0,0,0]) + np.array([xi[0]*t, xi[1]*t, xi[2]*t,0,0,0])
+        joint_angles=limb.joint_angles()
+        position_error = current_position - expected_position
+        vel_dict=limb.endpoint_velocity()['linear']
+        vel_ang=limb.endpoint_velocity()['angular']
+        current_v = np.array([vel_dict.x,vel_dict.y,vel_dict.z,0,0,0])
+        k = .5
+        dir_vect = dir_vect-k*np.array([position_error[0],position_error[1],position_error[2]])
+        dir_vect = dir_vect/(np.linalg.norm(dir_vect))
+        new_vel = v_0*np.array([dir_vect[0],dir_vect[1],dir_vect[2],0,0,0])
+        I=np.identity(7)
+        b_vect=np.array([0,0,0,0,0,0,0])
+        q_dot = np.dot(kin.jacobian_pseudo_inverse(),(new_vel))
+        j_vels[hand+'_s0']=q_dot[0,0]
+        j_vels[hand+'_s1']=q_dot[0,1]
+        j_vels[hand+'_e0']=q_dot[0,2]
+        j_vels[hand+'_e1']=q_dot[0,3]
+        j_vels[hand+'_w0']=q_dot[0,4]
+        j_vels[hand+'_w1']=q_dot[0,5]
+        j_vels[hand+'_w2']=q_dot[0,6]
+        #rospy.sleep(frq)
+        if board_params['on_defense']==False: #AreWeThereYet(limb,start_xyz,abs_dist) or 
+            #j_vels=stop_moving(hand)
+            isMoving = False
+        #limb.set_joint_velocities(j_vels)
+
+########################################################################################
+def Throw_test():
+    hand=rospy.get_param('/hand_mode')
+    board_params['on_defense']= False
+    bi.Gripper(hand).calibrate()
+    rospy.sleep(1)
+    #hard-coded right arm throwing position
+    r_throw_angs={'right_s0': 0.8410049659973146,'right_s1': -0.9518350777954102, 'right_w0': 0.9096506061767579, 'right_w1': 0.7198204838928223, 'right_w2': -3.046485841259766, 'right_e0': -1.0289176122985841, 'right_e1': 2.235010005395508}
+#    neutral_pos(hand)
+    set_joint_angles(hand,r_throw_angs)
+    g=9.81
+    fudge=0.8
+    curs=get_currents()[0]
+    print("current position recieved")
+    print(curs)
+    lifted=np.array([curs[0],curs[1],curs[2]+.5])
+    print("lifted position calculated")
+    print(lifted)
+    if rospy.get_param('/hand_mode')== "left":
+        targ=np.array([lifted[0],-5,lifted[2]])
+    else:
+        targ=np.array([lifted[0],5,lifted[2]])
+    print("target found")
+    print(targ)
+    #MoveTo([0,0,0]) #ball location
+    ChangeGripper('close')
+    rospy.sleep(.5)
+    print("GRIPPER CLOSE")
+    #MoveTo(lifted) #some good height to throw from
+    print("MOVE TO LIFTED POSITION")
+#    DrawLine(-targ,.05) #"cocking" back
+#    rospy.sleep(2)
+#    print("COCKING BACK")
+    end0=get_currents()[0]; #may need to calculate direction to opponents goal?
+    drop_time=math.sqrt(2*lifted[2]/g)
+    throw_speed=targ[1]/drop_time*fudge #assume horizontal release velocity
+    #do some calcumurations to define shooting vector
+    DrawLine(targ,.5) #DrawLine(targ,throw_speed) #throw
+    print("THROWING")
+    print(throw_speed)
+    rospy.sleep(1)
+    ChangeGripper('open')
+    print("GRIPPER OPEN")
+    rospy.sleep(.5)
+    stop_moving(rospy.get_param('/hand_mode'))
+    print("STOP MOVING")
+    print("ball thrown")
